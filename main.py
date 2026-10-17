@@ -46,7 +46,8 @@ def verify_token(request: VerifyRequest):
             "aud": claims.get("aud"),
         }
 
-    except InvalidTokenError:
+    except InvalidTokenError as exc:
+        print(f"JWT verification failed: {type(exc).__name__}: {exc}")
         return JSONResponse(
             status_code=401,
             content={"valid": False},

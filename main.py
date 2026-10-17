@@ -1,12 +1,10 @@
-
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import jwt
 from jwt.exceptions import InvalidTokenError
 
-ISSUER = "https://idp.exam.local"
-AUDIENCE = "tds-tc44wfb.apps.exam.local"
+app = FastAPI()
 
 PUBLIC_KEY = """-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2okOHspNjgA+2rTLbeuY
@@ -18,52 +16,30 @@ SI6iyrYbKR0NEBSqq4XkadEjsCs4F1RncsS4LlgniT7GlkL9Mce3b0wGLs9/7ZIX
 dQIDAQAB
 -----END PUBLIC KEY-----"""
 
-app = FastAPI()
+ISSUER = "https://idp.exam.local"
+AUDIENCE = "tds-tc44wvfb.apps.exam.local"
 
-
-class VerifyRequest(BaseModel):
+class TokenRequest(BaseModel):
     token: str
 
-
 @app.post("/verify")
-def verify_token(request: VerifyRequest):
+def verify_token(req: TokenRequest):
     try:
-        claims = jwt.decode(
-            request.token,
+        payload = jwt.decode(
+            req.token,
             PUBLIC_KEY,
             algorithms=["RS256"],
-            issuer=ISSUER,
             audience=AUDIENCE,
-            options={
-                "require": ["exp", "iss", "aud", "sub"],
-            },
+            issuer=ISSUER,
+            leeway=30,
         )
-
         return {
             "valid": True,
-            "email": claims.get("email"),
-            "sub": claims.get("sub"),
-            "aud": claims.get("aud"),
+            "email": payload.get("email"),
+            "sub": payload.get("sub"),
+            "aud": payload.get("aud"),
         }
-
-    except InvalidTokenError as exc:
-        try:
-            unverified = jwt.decode(
-                request.token,
-                options={
-                    "verify_signature": False,
-                    "verify_exp": False,
-                    "verify_iss": False,
-                    "verify_aud": False,
-                },
-            )
-            print("Token aud:", repr(unverified.get("aud")))
-            print("Expected aud:", repr(AUDIENCE))
-        except Exception as diagnostic_error:
-            print("Diagnostic failed:", type(diagnostic_error).__name__)
-
-        print(f"JWT verification failed: {type(exc).__name__}: {exc}")
-        return JSONResponse(
-            status_code=401,
-            content={"valid": False},
-        )
+    except InvalidTokenError:
+        return JSONResponse(status_code=401, content={"valid": False})
+    except Exception:
+        return JSONResponse(status_code=401, content={"valid": False})

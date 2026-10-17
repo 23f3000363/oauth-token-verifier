@@ -47,6 +47,21 @@ def verify_token(request: VerifyRequest):
         }
 
     except InvalidTokenError as exc:
+        try:
+            unverified = jwt.decode(
+                request.token,
+                options={
+                    "verify_signature": False,
+                    "verify_exp": False,
+                    "verify_iss": False,
+                    "verify_aud": False,
+                },
+            )
+            print("Token aud:", repr(unverified.get("aud")))
+            print("Expected aud:", repr(AUDIENCE))
+        except Exception as diagnostic_error:
+            print("Diagnostic failed:", type(diagnostic_error).__name__)
+
         print(f"JWT verification failed: {type(exc).__name__}: {exc}")
         return JSONResponse(
             status_code=401,
